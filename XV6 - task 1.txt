@@ -1,0 +1,48 @@
+﻿XV6 - task 1
+Višestruki terminali / ANSI escape kodovi
+Cilj je izmeniti xv6 sistem tako da podržava rad sa više terminala istovremeno, uz podršku za izmenu boje na ekranu pomoću ANSI escape code. Završen projekat treba da sadrži sledeće funkcionalnosti:
+* Promena trenutno aktivnog terminala.
+* Čitanje i pisanje na svim terminalima.
+* Podrška za ANSI escape kodove za boje na terminalima.
+* 
+
+Rok je definisan po grupi kojoj student zvanično pripada. Studeni koju slušaju vežbe van svog termina i dalje moraju da poštuju termine na osnovu zvaničnog spiska. Za sve ponovce se primenjuje najkasniji rok. 
+
+
+Neće se pregledati zadaci (tj. biće dodeljeno 0 poena) ako se desi bilo koje od:
+* Sadržaj mail-a nije po navedenom obliku.
+* Subject mail-a nije po navedenom obliku.
+* Naziv arhive nije po navedenom obliku.
+* Predaja se desi nakon navedenog roka.
+* Kod se ne kompajluje.
+* Kod nije uredno uvučen.
+Opis problema
+Savremeni Unix i Linux sistemi podržavaju višestruke terminale. Izbor trenutno aktivnog terminala se vrši kombinacijom tastera ctrl+alt+FX gde je FX neki od F tastera. Tipično će F1 birati prvi terminal, F2 drugi terminal, itd. Ovi terminali se startuju pre grafičkog okruženja, tako da će promena terminala pod Ubuntu mašinom da prikaže ekran koji je potpuno tekstualni. Na Ubuntu distribuciji se na prvom terminalu (ctrl+alt+F1) nalazi GUI okruženje.
+
+
+Ovi terminali su predstavljeni različitim /dev/ttyX datotekama. Umesto X se navodi broj terminala koji ta datoteka predstavlja.
+
+
+Preba obezbediti istu tu funkcionalnost za 6 terminala pod xv6. Za promenu terminala pod xv6 koristiti kombinaciju tastera alt+X, gde je X broj terminala koji može da bude vrednost od 1 do 6, uključujući te dve. Ne koristiti F tastere, već obične brojeve.
+
+
+Pored toga, treba unutar kernela omogućiti ispis sa bojama po ANSI escape kodovima kao što su opisani na vežbi 3. Komande koje treba podržati su:
+* 0 - vraćanje oba atributa na default
+* 30 - 37 - izbor boje slova
+* 39 - vraćanje boje slova na default (svetlo siva)
+* 40 - 47 - izbor boje pozadine
+* 49 - vraćanje boje pozadine na default (crnu)
+
+
+Da bi se pokazalo da boje funkcionišu, izmeniti komandu ls (user/ls.c) tako da nazive direktorijuma (st.type == T_DIR) ispisuje plavom bojom na crnoj pozadini i nazive datoteka koje predstavljaju uređaje (st.type == T_DEV) ispisuje belom bojom na žutoj pozadini.
+
+
+Pored toga, tekst fajl koji sadrži ANSI escape kodove u sebi (primer: boje.txt) treba da izgleda obojeno kada se ispiše pomoću komande cat. Ne treba, i nije dozvoljeno menjati komandu cat.
+Izmena strukture sistema
+Na svakom /dev/ttyX sluša različita instanca sh - shell procesa. Shell je proces koji zapravo vrši parsiranje komandne linije i izvršavanje komandi, tj. to je korisnički proces sa kojim komuniciramo kada unosimo komande u terminalu. Dakle, sistem koji ima 6 terminala će takođe morati da ima 6 pokrenutih sh procesa.
+
+
+Datoteka /user/init.c je već izmenjena tako da umesto jednog startuje 6 sh procesa. Ovi procesi zatvaraju /dev/console za čitanje i pisanje, i otvaraju svoju odgovarajuću /dev/ttyX datoteku. Ove datoteke se takođe u istom trenutku kreiraju, tako da će sigurno postojati na xv6 disku kada se pokrene. Nakon tih operacija imamo startovano 6 sh procesa, koji imaju otvorenu datoteku /dev/ttyX za čitanje i pisanje, gde je 1 <= X <= 6.
+
+
+Datoteka /dev/console poseduje atribut major, koji je postavljen na 1. Njime se naznačava da je u pitanju datoteka koja opisuje terminal. Ovo će važiti i za sve novokreirane /dev/ttyX datoteke. Ono što će ih međusobno razlikovati je atribut minor, koji će biti postavljen na vrednost X kod /dev/ttyX. Na osnovu ovog atributa možemo unutar kernela da znamo koji je terminal na kojem se vrši pisanje, odnosno čitanje. Funkcije consoleread() i consolewrite() su trenutno izmenjene tako da ignorišu čitanje i pisanje u /dev/ttyX datoteke koji imaju minor atribut različit od 1.
